@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOE Analysis Tool - Design of Experiments</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Design of Experiments (DOE) Analysis Tool</h1>
+            <p class="subtitle">Full Factorial Design & Statistical Analysis</p>
+        </header>
+
+        <!-- Progress Indicator -->
+        <div class="progress-bar">
+            <div class="progress-step active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-label">Select Factors</div>
+            </div>
+            <div class="progress-step" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-label">Define Factors</div>
+            </div>
+            <div class="progress-step" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-label">Input Data</div>
+            </div>
+            <div class="progress-step" data-step="4">
+                <div class="step-number">4</div>
+                <div class="step-label">Analysis & Report</div>
+            </div>
+        </div>
+
+        <!-- Step 1: Factor Selection -->
+        <div class="step-content" id="step1">
+            <h2>Step 1: Select Number of Factors</h2>
+            <div class="factor-selection">
+                <label class="radio-card">
+                    <input type="radio" name="numFactors" value="2" checked>
+                    <div class="card-content">
+                        <h3>2 Factors</h3>
+                        <p>Simple factorial design with 4 runs</p>
+                        <p class="runs-info">2² = 4 experiments</p>
+                    </div>
+                </label>
+                <label class="radio-card">
+                    <input type="radio" name="numFactors" value="3">
+                    <div class="card-content">
+                        <h3>3 Factors</h3>
+                        <p>Full factorial design with 8 runs</p>
+                        <p class="runs-info">2³ = 8 experiments</p>
+                    </div>
+                </label>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="goToStep2()">Next: Define Factors</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Factor Definition -->
+        <div class="step-content hidden" id="step2">
+            <h2>Step 2: Define Your Factors</h2>
+            <p class="instruction">Enter the names and levels for each factor (e.g., Temperature, Pressure, Time)</p>
+
+            <div id="factorInputs"></div>
+
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="goToStep1()">Back</button>
+                <button class="btn btn-primary" onclick="generateDOETable()">Generate DOE Table</button>
+            </div>
+        </div>
+
+        <!-- Step 3: DOE Table & Data Input -->
+        <div class="step-content hidden" id="step3">
+            <h2>Step 3: Enter Experimental Results</h2>
+            <p class="instruction">Enter the response value (result) for each experimental run</p>
+
+            <div class="table-container">
+                <table id="doeTable">
+                    <thead id="doeTableHead"></thead>
+                    <tbody id="doeTableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="goToStep2()">Back</button>
+                <button class="btn btn-primary" onclick="performAnalysis()">Analyze Results</button>
+            </div>
+        </div>
+
+        <!-- Step 4: Analysis & Report -->
+        <div class="step-content hidden" id="step4">
+            <h2>Step 4: DOE Analysis Report</h2>
+
+            <!-- Key Findings Summary -->
+            <div class="report-section">
+                <h3>Key Findings Summary</h3>
+                <div id="keyFindings" class="findings-box"></div>
+            </div>
+
+            <!-- Main Effects -->
+            <div class="report-section">
+                <h3>Main Effects Analysis</h3>
+                <div class="chart-container">
+                    <canvas id="mainEffectsChart"></canvas>
+                </div>
+                <div id="mainEffectsTable"></div>
+            </div>
+
+            <!-- Interaction Effects -->
+            <div class="report-section" id="interactionSection">
+                <h3>Interaction Effects</h3>
+                <div class="chart-container">
+                    <canvas id="interactionChart"></canvas>
+                </div>
+                <div id="interactionTable"></div>
+            </div>
+
+            <!-- Pareto Chart -->
+            <div class="report-section">
+                <h3>Pareto Chart of Effects</h3>
+                <div class="chart-container">
+                    <canvas id="paretoChart"></canvas>
+                </div>
+            </div>
+
+            <!-- ANOVA Table -->
+            <div class="report-section">
+                <h3>Analysis of Variance (ANOVA)</h3>
+                <div id="anovaTable"></div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="report-section">
+                <h3>Recommendations</h3>
+                <div id="recommendations" class="recommendations-box"></div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="goToStep3()">Back to Data</button>
+                <button class="btn btn-primary" onclick="startOver()">Start New Analysis</button>
+                <button class="btn btn-success" onclick="exportReport()">Export Report</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
