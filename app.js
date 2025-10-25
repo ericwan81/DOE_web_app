@@ -344,7 +344,9 @@ function generateKeyFindings() {
         html += `<li><strong>Most Significant Factor:</strong> ${effectName} with effect of ${largestEffect[1].toFixed(3)}</li>`;
 
         // List all significant effects
-        const significantEffects = sortedEffects.filter(([_, effect]) => Math.abs(effect) / totalEffect > 0.15);
+        const significantEffects = totalEffect > 0
+            ? sortedEffects.filter(([_, effect]) => Math.abs(effect) / totalEffect > 0.15)
+            : [];
         if (significantEffects.length > 0) {
             html += '<li><strong>Significant Effects:</strong> ';
             html += significantEffects.map(([name, effect]) =>
@@ -535,7 +537,7 @@ function generateParetoChart() {
     let sum = 0;
     data.forEach(val => {
         sum += val;
-        cumulative.push((sum / total) * 100);
+        cumulative.push(total > 0 ? (sum / total) * 100 : 0);
     });
 
     window.paretoChart = new Chart(ctx, {
