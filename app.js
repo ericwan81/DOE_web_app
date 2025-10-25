@@ -176,58 +176,81 @@ function createDOETable() {
 
 // Perform DOE Analysis
 function performAnalysis() {
-    console.log('performAnalysis called');
+    console.log('=== ANALYZE BUTTON CLICKED ===');
     console.log('Number of doeRuns:', doeRuns.length);
+    console.log('Number of factors:', numFactors);
 
     // Collect response data
     let allDataEntered = true;
+    let missingIndices = [];
+
     doeRuns.forEach((run, index) => {
         const responseInput = document.getElementById(`response${index}`);
 
         if (!responseInput) {
-            console.error(`Response input ${index} not found`);
+            console.error(`Response input ${index} not found in DOM`);
             allDataEntered = false;
             return;
         }
 
-        const value = parseFloat(responseInput.value);
+        const inputValue = responseInput.value;
+        console.log(`Input ${index}: "${inputValue}"`);
 
-        if (isNaN(value) || responseInput.value.trim() === '') {
+        // Check if value is empty or not a valid number
+        if (!inputValue || inputValue.trim() === '') {
             console.log(`Missing value at index ${index}`);
             allDataEntered = false;
+            missingIndices.push(index + 1);
         } else {
-            run.response = value;
+            const value = parseFloat(inputValue);
+            if (isNaN(value)) {
+                console.log(`Invalid number at index ${index}: "${inputValue}"`);
+                allDataEntered = false;
+                missingIndices.push(index + 1);
+            } else {
+                run.response = value;
+                console.log(`Set response ${index} = ${value}`);
+            }
         }
     });
 
     if (!allDataEntered) {
-        alert('Please enter response values for all experimental runs.');
+        alert(`Please enter valid numeric values for all experimental runs.\nMissing/invalid at run(s): ${missingIndices.join(', ')}`);
         return;
     }
 
-    console.log('All data entered, calculating effects...');
+    console.log('✓ All data validated successfully');
+    console.log('Responses:', doeRuns.map(r => r.response));
 
     // Calculate effects
     try {
+        console.log('Starting calculateEffects...');
         calculateEffects();
-        console.log('Effects calculated successfully');
+        console.log('✓ Effects calculated successfully');
+        console.log('Main effects:', analysisResults.mainEffects);
+        console.log('Interaction effects:', analysisResults.interactionEffects);
     } catch (error) {
-        console.error('Error in calculateEffects:', error);
+        console.error('❌ Error in calculateEffects:', error);
+        console.error('Stack trace:', error.stack);
         alert('Error calculating effects: ' + error.message);
         return;
     }
 
     // Generate report
     try {
+        console.log('Starting generateReport...');
         generateReport();
-        console.log('Report generated successfully');
+        console.log('✓ Report generated successfully');
     } catch (error) {
-        console.error('Error in generateReport:', error);
+        console.error('❌ Error in generateReport:', error);
+        console.error('Stack trace:', error.stack);
         alert('Error generating report: ' + error.message);
         return;
     }
 
+    console.log('Moving to step 4...');
     showStep(4);
+    console.log('=== ANALYSIS COMPLETE ===');
 }
 
 function calculateEffects() {
@@ -465,7 +488,7 @@ function generateMainEffectsChart() {
     const ctx = document.getElementById('mainEffectsChart').getContext('2d');
 
     // Destroy previous chart if exists
-    if (window.mainEffectsChart) {
+    if (window.mainEffectsChart && typeof window.mainEffectsChart.destroy === 'function') {
         window.mainEffectsChart.destroy();
     }
 
@@ -538,7 +561,7 @@ function generateInteractionChart() {
     const ctx = document.getElementById('interactionChart').getContext('2d');
 
     // Destroy previous chart if exists
-    if (window.interactionChart) {
+    if (window.interactionChart && typeof window.interactionChart.destroy === 'function') {
         window.interactionChart.destroy();
     }
 
@@ -605,7 +628,7 @@ function generateParetoChart() {
     const ctx = document.getElementById('paretoChart').getContext('2d');
 
     // Destroy previous chart if exists
-    if (window.paretoChart) {
+    if (window.paretoChart && typeof window.paretoChart.destroy === 'function') {
         window.paretoChart.destroy();
     }
 
