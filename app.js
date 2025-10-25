@@ -96,25 +96,41 @@ function generateDOETable() {
         });
     }
 
-    // Generate full factorial design
-    const numRuns = Math.pow(2, numFactors);
+    // Generate full factorial design with 2 replicates
+    const numTreatments = Math.pow(2, numFactors);
+    const numReplicates = 2;
     doeRuns = [];
 
-    for (let run = 0; run < numRuns; run++) {
-        const runData = {
-            runNumber: run + 1,
-            factors: {},
-            response: null
-        };
+    // Create all treatment combinations with replicates
+    for (let rep = 0; rep < numReplicates; rep++) {
+        for (let run = 0; run < numTreatments; run++) {
+            const runData = {
+                stdOrder: run + 1,  // Standard order
+                replicate: rep + 1,
+                factors: {},
+                responses: []  // Changed to array to store multiple responses
+            };
 
-        for (let f = 0; f < numFactors; f++) {
-            // Binary pattern for factorial design
-            const level = (run & (1 << f)) ? 1 : -1;
-            runData.factors[factors[f].label] = level;
+            for (let f = 0; f < numFactors; f++) {
+                // Binary pattern for factorial design
+                const level = (run & (1 << f)) ? 1 : -1;
+                runData.factors[factors[f].label] = level;
+            }
+
+            doeRuns.push(runData);
         }
-
-        doeRuns.push(runData);
     }
+
+    // Randomize run order
+    for (let i = doeRuns.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [doeRuns[i], doeRuns[j]] = [doeRuns[j], doeRuns[i]];
+    }
+
+    // Assign random run numbers
+    doeRuns.forEach((run, index) => {
+        run.runNumber = index + 1;
+    });
 
     // Create table
     createDOETable();
@@ -126,7 +142,7 @@ function createDOETable() {
     const tbody = document.getElementById('doeTableBody');
 
     // Create header
-    let headerHTML = '<tr><th>Run #</th>';
+    let headerHTML = '<tr><th>Run #</th><th>Rep</th>';
     factors.forEach(factor => {
         headerHTML += `<th>${factor.name}<br>(${factor.label})</th>`;
     });
@@ -140,6 +156,9 @@ function createDOETable() {
 
         // Run number
         row.innerHTML = `<td><strong>${run.runNumber}</strong></td>`;
+
+        // Replicate number
+        row.innerHTML += `<td>${run.replicate}</td>`;
 
         // Factor levels
         factors.forEach(factor => {
@@ -163,7 +182,7 @@ function performAnalysis() {
         const responseInput = document.getElementById(`response${index}`);
         const value = parseFloat(responseInput.value);
 
-        if (isNaN(value)) {
+        if (isNaN(value) || responseInput.value.trim() === '') {
             allDataEntered = false;
         } else {
             run.response = value;
@@ -191,7 +210,7 @@ function calculateEffects() {
     // Calculate overall mean
     const mean = responses.reduce((sum, val) => sum + val, 0) / n;
 
-    // Calculate main effects
+    // Calculate main effects (using all replicates)
     const mainEffects = {};
     factors.forEach(factor => {
         const highSum = doeRuns
@@ -207,7 +226,7 @@ function calculateEffects() {
         mainEffects[factor.label] = (highSum / highCount) - (lowSum / lowCount);
     });
 
-    // Calculate interaction effects
+    // Calculate interaction effects (using all replicates)
     const interactionEffects = {};
     if (numFactors >= 2) {
         for (let i = 0; i < numFactors; i++) {
@@ -264,30 +283,52 @@ function calculateEffects() {
         interactionEffects[interaction] = (sumPlus/countPlus - sumMinus/countMinus);
     }
 
-    // Calculate sum of squares for ANOVA
+    // Calculate sum of squares for ANOVA with proper replication handling
     const SSTotal = responses.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0);
 
-    let SSEffects = 0;
-    Object.values(mainEffects).forEach(effect => {
-        SSEffects += n * Math.pow(effect, 2) / 4;
-    });
-    Object.values(interactionEffects).forEach(effect => {
-        SSEffects += n * Math.pow(effect, 2) / 4;
+    // Calculate treatment means for each unique combination
+    const numTreatments = Math.pow(2, numFactors);
+    const numReplicates = n / numTreatments;
+
+    // Group runs by treatment combination
+    const treatmentGroups = {};
+    doeRuns.forEach(run => {
+        const key = factors.map(f => run.factors[f.label]).join(',');
+        if (!treatmentGroups[key]) {
+            treatmentGroups[key] = [];
+        }
+        treatmentGroups[key].push(run.response);
     });
 
-    const SSError = SSTotal - SSEffects;
+    // Calculate SS for model (treatments)
+    let SSModel = 0;
+    Object.values(treatmentGroups).forEach(group => {
+        const groupMean = group.reduce((sum, val) => sum + val, 0) / group.length;
+        SSModel += group.length * Math.pow(groupMean - mean, 2);
+    });
+
+    // Pure error from replicates
+    let SSPureError = 0;
+    Object.values(treatmentGroups).forEach(group => {
+        const groupMean = group.reduce((sum, val) => sum + val, 0) / group.length;
+        group.forEach(val => {
+            SSPureError += Math.pow(val - groupMean, 2);
+        });
+    });
+
+    const SSError = SSPureError;
 
     // Degrees of freedom
     const dfTotal = n - 1;
-    const dfEffects = Object.keys(mainEffects).length + Object.keys(interactionEffects).length;
-    const dfError = dfTotal - dfEffects;
+    const dfModel = numTreatments - 1;
+    const dfError = n - numTreatments;
 
     // Mean squares
-    const MSEffects = SSEffects / dfEffects;
+    const MSModel = SSModel / dfModel;
     const MSError = dfError > 0 ? SSError / dfError : 0;
 
     // F-statistic
-    const Fstat = MSError > 0 ? MSEffects / MSError : 0;
+    const Fstat = MSError > 0 ? MSModel / MSError : 0;
 
     // Store results
     analysisResults = {
@@ -296,12 +337,12 @@ function calculateEffects() {
         interactionEffects,
         anova: {
             SSTotal,
-            SSEffects,
+            SSEffects: SSModel,
             SSError,
             dfTotal,
-            dfEffects,
+            dfEffects: dfModel,
             dfError,
-            MSEffects,
+            MSEffects: MSModel,
             MSError,
             Fstat
         }
