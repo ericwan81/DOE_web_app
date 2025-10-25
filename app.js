@@ -176,13 +176,24 @@ function createDOETable() {
 
 // Perform DOE Analysis
 function performAnalysis() {
+    console.log('performAnalysis called');
+    console.log('Number of doeRuns:', doeRuns.length);
+
     // Collect response data
     let allDataEntered = true;
     doeRuns.forEach((run, index) => {
         const responseInput = document.getElementById(`response${index}`);
+
+        if (!responseInput) {
+            console.error(`Response input ${index} not found`);
+            allDataEntered = false;
+            return;
+        }
+
         const value = parseFloat(responseInput.value);
 
         if (isNaN(value) || responseInput.value.trim() === '') {
+            console.log(`Missing value at index ${index}`);
             allDataEntered = false;
         } else {
             run.response = value;
@@ -194,11 +205,27 @@ function performAnalysis() {
         return;
     }
 
+    console.log('All data entered, calculating effects...');
+
     // Calculate effects
-    calculateEffects();
+    try {
+        calculateEffects();
+        console.log('Effects calculated successfully');
+    } catch (error) {
+        console.error('Error in calculateEffects:', error);
+        alert('Error calculating effects: ' + error.message);
+        return;
+    }
 
     // Generate report
-    generateReport();
+    try {
+        generateReport();
+        console.log('Report generated successfully');
+    } catch (error) {
+        console.error('Error in generateReport:', error);
+        alert('Error generating report: ' + error.message);
+        return;
+    }
 
     showStep(4);
 }
@@ -350,21 +377,41 @@ function calculateEffects() {
 }
 
 function generateReport() {
-    generateKeyFindings();
-    generateMainEffectsChart();
-    generateMainEffectsTable();
+    try {
+        console.log('Generating key findings...');
+        generateKeyFindings();
 
-    if (numFactors >= 2) {
-        generateInteractionChart();
-        generateInteractionTable();
-        document.getElementById('interactionSection').style.display = 'block';
-    } else {
-        document.getElementById('interactionSection').style.display = 'none';
+        console.log('Generating main effects chart...');
+        generateMainEffectsChart();
+
+        console.log('Generating main effects table...');
+        generateMainEffectsTable();
+
+        if (numFactors >= 2) {
+            console.log('Generating interaction chart...');
+            generateInteractionChart();
+
+            console.log('Generating interaction table...');
+            generateInteractionTable();
+            document.getElementById('interactionSection').style.display = 'block';
+        } else {
+            document.getElementById('interactionSection').style.display = 'none';
+        }
+
+        console.log('Generating Pareto chart...');
+        generateParetoChart();
+
+        console.log('Generating ANOVA table...');
+        generateANOVATable();
+
+        console.log('Generating recommendations...');
+        generateRecommendations();
+
+        console.log('Report generation complete!');
+    } catch (error) {
+        console.error('Error in generateReport:', error);
+        throw error;
     }
-
-    generateParetoChart();
-    generateANOVATable();
-    generateRecommendations();
 }
 
 function generateKeyFindings() {
