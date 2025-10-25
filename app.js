@@ -830,70 +830,225 @@ function startOver() {
     }
 }
 
-function exportReport() {
-    // Create a comprehensive text report
-    let report = '='.repeat(60) + '\n';
-    report += 'DOE ANALYSIS REPORT\n';
-    report += '='.repeat(60) + '\n\n';
+async function exportReport() {
+    // Show loading message
+    const exportButton = event.target;
+    const originalText = exportButton.textContent;
+    exportButton.textContent = 'Generating PDF...';
+    exportButton.disabled = true;
 
-    report += `Date: ${new Date().toLocaleDateString()}\n`;
-    report += `Number of Factors: ${numFactors}\n`;
-    report += `Number of Runs: ${doeRuns.length}\n\n`;
+    try {
+        // Get the jsPDF library
+        const { jsPDF } = window.jspdf;
 
-    report += 'FACTORS:\n';
-    report += '-'.repeat(60) + '\n';
-    factors.forEach(factor => {
-        report += `${factor.name} (${factor.label}): Low = ${factor.lowLevel}, High = ${factor.highLevel}\n`;
-    });
-    report += '\n';
+        // Create new PDF document (A4 size)
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 15;
+        const contentWidth = pageWidth - 2 * margin;
 
-    report += 'EXPERIMENTAL DATA:\n';
-    report += '-'.repeat(60) + '\n';
-    report += 'Run\t' + factors.map(f => f.label).join('\t') + '\tResponse\n';
-    doeRuns.forEach(run => {
-        report += `${run.runNumber}\t`;
-        report += factors.map(f => run.factors[f.label]).join('\t') + '\t';
-        report += `${run.response}\n`;
-    });
-    report += '\n';
+        let yPosition = margin;
 
-    report += 'MAIN EFFECTS:\n';
-    report += '-'.repeat(60) + '\n';
-    factors.forEach(factor => {
-        report += `${factor.name}: ${analysisResults.mainEffects[factor.label].toFixed(4)}\n`;
-    });
-    report += '\n';
+        // Helper function to add new page if needed
+        function checkPageBreak(heightNeeded) {
+            if (yPosition + heightNeeded > pageHeight - margin) {
+                pdf.addPage();
+                yPosition = margin;
+                return true;
+            }
+            return false;
+        }
 
-    if (Object.keys(analysisResults.interactionEffects).length > 0) {
-        report += 'INTERACTION EFFECTS:\n';
-        report += '-'.repeat(60) + '\n';
-        Object.entries(analysisResults.interactionEffects).forEach(([code, effect]) => {
-            report += `${getEffectName(code)}: ${effect.toFixed(4)}\n`;
+        // Title
+        pdf.setFontSize(20);
+        pdf.setTextColor(102, 126, 234);
+        pdf.text('DOE Analysis Report', pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 10;
+
+        pdf.setFontSize(12);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text('Design of Experiments - Full Factorial Analysis', pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 15;
+
+        // Report metadata
+        pdf.setFontSize(10);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(`Date: ${new Date().toLocaleDateString()}`, margin, yPosition);
+        yPosition += 6;
+        pdf.text(`Number of Factors: ${numFactors}`, margin, yPosition);
+        yPosition += 6;
+        pdf.text(`Number of Runs: ${doeRuns.length}`, margin, yPosition);
+        yPosition += 10;
+
+        // Section: Factors
+        checkPageBreak(40);
+        pdf.setFontSize(14);
+        pdf.setTextColor(102, 126, 234);
+        pdf.text('Experimental Factors', margin, yPosition);
+        yPosition += 8;
+
+        pdf.setFontSize(10);
+        pdf.setTextColor(0, 0, 0);
+        factors.forEach(factor => {
+            checkPageBreak(8);
+            pdf.text(`${factor.name} (${factor.label}): Low = ${factor.lowLevel}, High = ${factor.highLevel}`, margin + 5, yPosition);
+            yPosition += 6;
         });
-        report += '\n';
+        yPosition += 5;
+
+        // Capture and add Key Findings
+        checkPageBreak(50);
+        pdf.setFontSize(14);
+        pdf.setTextColor(102, 126, 234);
+        pdf.text('Key Findings Summary', margin, yPosition);
+        yPosition += 8;
+
+        const keyFindingsElement = document.getElementById('keyFindings');
+        const keyFindingsCanvas = await html2canvas(keyFindingsElement, {
+            scale: 2,
+            backgroundColor: '#ffffff'
+        });
+        const keyFindingsImg = keyFindingsCanvas.toDataURL('image/png');
+        const kfHeight = (keyFindingsCanvas.height * contentWidth) / keyFindingsCanvas.width;
+
+        checkPageBreak(kfHeight);
+        pdf.addImage(keyFindingsImg, 'PNG', margin, yPosition, contentWidth, kfHeight);
+        yPosition += kfHeight + 10;
+
+        // Capture and add Main Effects Chart
+        checkPageBreak(80);
+        pdf.setFontSize(14);
+        pdf.setTextColor(102, 126, 234);
+        pdf.text('Main Effects Analysis', margin, yPosition);
+        yPosition += 8;
+
+        const mainEffectsCanvas = document.getElementById('mainEffectsChart');
+        const mainEffectsImg = mainEffectsCanvas.toDataURL('image/png');
+        const chartHeight = 70;
+
+        checkPageBreak(chartHeight + 10);
+        pdf.addImage(mainEffectsImg, 'PNG', margin, yPosition, contentWidth, chartHeight);
+        yPosition += chartHeight + 5;
+
+        // Add Main Effects Table
+        const mainEffectsTableElement = document.getElementById('mainEffectsTable');
+        const mainEffectsTableCanvas = await html2canvas(mainEffectsTableElement, {
+            scale: 2,
+            backgroundColor: '#ffffff'
+        });
+        const mainEffectsTableImg = mainEffectsTableCanvas.toDataURL('image/png');
+        const metHeight = (mainEffectsTableCanvas.height * contentWidth) / mainEffectsTableCanvas.width;
+
+        checkPageBreak(metHeight);
+        pdf.addImage(mainEffectsTableImg, 'PNG', margin, yPosition, contentWidth, metHeight);
+        yPosition += metHeight + 10;
+
+        // Interaction Effects (if applicable)
+        if (numFactors >= 2) {
+            checkPageBreak(80);
+            pdf.setFontSize(14);
+            pdf.setTextColor(102, 126, 234);
+            pdf.text('Interaction Effects', margin, yPosition);
+            yPosition += 8;
+
+            const interactionCanvas = document.getElementById('interactionChart');
+            const interactionImg = interactionCanvas.toDataURL('image/png');
+
+            checkPageBreak(chartHeight + 10);
+            pdf.addImage(interactionImg, 'PNG', margin, yPosition, contentWidth, chartHeight);
+            yPosition += chartHeight + 5;
+
+            // Add Interaction Table
+            const interactionTableElement = document.getElementById('interactionTable');
+            const interactionTableCanvas = await html2canvas(interactionTableElement, {
+                scale: 2,
+                backgroundColor: '#ffffff'
+            });
+            const interactionTableImg = interactionTableCanvas.toDataURL('image/png');
+            const itHeight = (interactionTableCanvas.height * contentWidth) / interactionTableCanvas.width;
+
+            checkPageBreak(itHeight);
+            pdf.addImage(interactionTableImg, 'PNG', margin, yPosition, contentWidth, itHeight);
+            yPosition += itHeight + 10;
+        }
+
+        // Pareto Chart
+        checkPageBreak(80);
+        pdf.setFontSize(14);
+        pdf.setTextColor(102, 126, 234);
+        pdf.text('Pareto Chart of Effects', margin, yPosition);
+        yPosition += 8;
+
+        const paretoCanvas = document.getElementById('paretoChart');
+        const paretoImg = paretoCanvas.toDataURL('image/png');
+
+        checkPageBreak(chartHeight + 10);
+        pdf.addImage(paretoImg, 'PNG', margin, yPosition, contentWidth, chartHeight);
+        yPosition += chartHeight + 10;
+
+        // ANOVA Table
+        checkPageBreak(60);
+        pdf.setFontSize(14);
+        pdf.setTextColor(102, 126, 234);
+        pdf.text('Analysis of Variance (ANOVA)', margin, yPosition);
+        yPosition += 8;
+
+        const anovaTableElement = document.getElementById('anovaTable');
+        const anovaTableCanvas = await html2canvas(anovaTableElement, {
+            scale: 2,
+            backgroundColor: '#ffffff'
+        });
+        const anovaTableImg = anovaTableCanvas.toDataURL('image/png');
+        const anovaHeight = (anovaTableCanvas.height * contentWidth) / anovaTableCanvas.width;
+
+        checkPageBreak(anovaHeight);
+        pdf.addImage(anovaTableImg, 'PNG', margin, yPosition, contentWidth, anovaHeight);
+        yPosition += anovaHeight + 10;
+
+        // Recommendations
+        checkPageBreak(50);
+        pdf.setFontSize(14);
+        pdf.setTextColor(102, 126, 234);
+        pdf.text('Recommendations', margin, yPosition);
+        yPosition += 8;
+
+        const recommendationsElement = document.getElementById('recommendations');
+        const recommendationsCanvas = await html2canvas(recommendationsElement, {
+            scale: 2,
+            backgroundColor: '#ffffff'
+        });
+        const recommendationsImg = recommendationsCanvas.toDataURL('image/png');
+        const recHeight = (recommendationsCanvas.height * contentWidth) / recommendationsCanvas.width;
+
+        checkPageBreak(recHeight);
+        pdf.addImage(recommendationsImg, 'PNG', margin, yPosition, contentWidth, recHeight);
+        yPosition += recHeight + 10;
+
+        // Footer on last page
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        const footerY = pageHeight - 10;
+        pdf.text('Generated with DOE Analysis Tool', pageWidth / 2, footerY, { align: 'center' });
+
+        // Save PDF
+        const filename = `DOE_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+        pdf.save(filename);
+
+        // Reset button
+        exportButton.textContent = originalText;
+        exportButton.disabled = false;
+
+        alert('PDF report exported successfully!');
+
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        alert('Error generating PDF: ' + error.message);
+
+        // Reset button
+        exportButton.textContent = originalText;
+        exportButton.disabled = false;
     }
-
-    report += 'ANOVA:\n';
-    report += '-'.repeat(60) + '\n';
-    const anova = analysisResults.anova;
-    report += `SS Effects: ${anova.SSEffects.toFixed(4)}\n`;
-    report += `SS Error: ${anova.SSError.toFixed(4)}\n`;
-    report += `SS Total: ${anova.SSTotal.toFixed(4)}\n`;
-    const rSquared = anova.SSTotal > 0 ? (anova.SSEffects / anova.SSTotal) : 0;
-    report += `R²: ${(rSquared * 100).toFixed(2)}%\n`;
-
-    // Download the report
-    const blob = new Blob([report], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `DOE_Report_${new Date().toISOString().split('T')[0]}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    alert('Report exported successfully!');
 }
 
 // Initialize on page load
